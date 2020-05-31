@@ -176,15 +176,6 @@ void* client_recv(void* data)
         if (!strcmp(buffer, helpMsg))
         {
             const char* text = "[/nick [nickname] - change your nickname.]\n[/online - check online users.]\n[/help - check all commands.]\n[/exit - leave chat.]";
-            
-                            
-            /* 
-            char standardName[] = "noname";
-            char changeNickname[] = "/nick";
-            char checkOnline[] = "/online";
-            char helpMsg[] = "/help";
-            char leaveChatMsg[] = "/exit";
-            */
             sendToAll(text);
         }
 
@@ -247,8 +238,8 @@ void server()
                 user->nickname[i] = standardName[i];
             }
             int id = freeSocket();
-            client_s[id] = user;
             user->id = id;
+            client_s[id] = user;
             pthread_create(&user->thread, NULL, client_recv, user);
         }
     }
@@ -291,11 +282,10 @@ void client()
         printf("Use /help to see all commands.\n");
         fclose(Log);
 
+        pthread_t thread;
+        pthread_create(&thread, NULL, recv_data, NULL);
         while(true)
         {
-            pthread_t thread;
-            int id;
-            pthread_create(&thread, NULL, recv_data, &id);
             std::string buffer;
             getline(std::cin, buffer);
             send(sock, buffer.c_str(), buffer.length(), 0);
@@ -308,7 +298,7 @@ void client()
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char* argv[])
 {
     if (argc == 1)
     {
