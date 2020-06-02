@@ -29,18 +29,18 @@ struct Client
 };
 Client* client_s[MAX_CLIENTS] = { NULL };
 
-int freeSocket()
+int freeSocket() // функция, ищущая первый свободный сокет
 {
     for (size_t i = 0; i < MAX_CLIENTS; ++i)
     {
-        if(client_s[i] == NULL)
+        if (client_s[i] == NULL)
         {
             return i;
         }
     }
 }
 
-void* recv_data(void* data)
+void* recv_msg(void* data) // функция для получения сообщений клиентом от сервера
 {
     char buffer[1024];
 
@@ -51,26 +51,21 @@ void* recv_data(void* data)
         {
             return 0;
         }
-        printf("%s\n", buffer);
-    }
-}
-
-void changeUserNickname(Client* data, char* message)
-{
-    
-    printf("New name: [%s]->[%s]\n", data->nickname, message);
-    for (size_t i = 0 ; i < 24; ++i)
-    {
-        if (message[i] == '\0' || message[i] == ' ')
+        for (int i = 0; i < n; i++)
         {
-            data->nickname[i] = '\0';
-            break;
+            if (buffer[i] == '\0')
+            {
+                printf("\n");
+            }
+            else
+            {
+                printf("%c", buffer[i]);
+            }
         }
-        data->nickname[i] = message[i];
     }
 }
 
-void sendToAll(const char* message)
+void sendToAll(const char* message) // функция отправки сообщения всем пользователям.
 {
     for(size_t k = 0; k < MAX_CLIENTS; ++k)
     {
@@ -81,7 +76,7 @@ void sendToAll(const char* message)
     }
 }
 
-void sendToUserByName(Client* data, char* message)
+void sendToUserByName(Client* data, char* message) // функция для отправки сообщения конкретному пользователю по @
 {
     char buffer[1024];
     char nickname[24];
@@ -96,7 +91,7 @@ void sendToUserByName(Client* data, char* message)
         }
         nickname[i - 1] = message[i];
     }
-    sprintf(buffer, "%s: %s", data->nickname, message);
+    sprintf(buffer, "[PM] %s: %s", data->nickname, message);
     for (size_t j = 0; j < MAX_CLIENTS; ++j)
     {
         if (client_s[j] != NULL)
@@ -109,32 +104,84 @@ void sendToUserByName(Client* data, char* message)
     }
 }
 
-void* client_recv(void* data)
+void changeUserNickname(Client* data, char* message) // функция для изменения никнейма пользователем
 {
-    Client* Data = (Client*)data;
+    bool isNameUsed = false;
+    for (size_t i = 0; i < strlen(message); ++i)
+    {
+        if (message[i] == ' ')
+        {
+            message[i] = '\0';
+        }
+    }
+    if (strlen(message) == 0)
+    {
+        char text[1024];
+        sprintf(text, "SERVER NOTIFICATION: You can not use void nickname. Use another nickname");
+        send(data->socket, text, strlen(text) + 1, 0);
+        return;
+    }
+    for (size_t i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (client_s[i] != NULL)
+        {
+            if (!strcmp(client_s[i]->nickname, message))
+            {
+                isNameUsed = true;
+            }
+        }
+    }
+    if (isNameUsed)
+    {
+        char text[1024];
+        sprintf(text, "SERVER NOTIFICATION: This nickname is already taken. Use another nickname");
+        send(data->socket, text, strlen(text) + 1, 0);
+        return;
+    }
+    printf("User changed nickname: [%s]->[%s]\n", data->nickname, message);
+    for (size_t i = 0 ; i < 24; ++i)
+    {
+        if (message[i] == '\0' || message[i] == ' ')
+        {
+            data->nickname[i] = '\0';
+            break;
+        }
+        data->nickname[i] = message[i];
+    }
+}
+
+void* client_recv(void* data) // получение данных сервером от клиента
+{
+    Client* user = (Client*)data;
     
     while(true)
     {
         char buffer[1024];
         char buffer2[1024];
-        memset(buffer, 0, 128);
-        int n = recv(Data->socket, buffer, sizeof(buffer), 0);
+        bool setName = true;
+        size_t i = 0;
+        memset(buffer, 0, 1024);
+        memset(buffer2, 0, 1024);
+        int n = recv(user->socket, buffer, sizeof(buffer), 0);
         if (n == 0)
         {
             return 0;
         }
+
+        printf("Received message from socket: [%s]: %s\n", user->nickname, buffer);
+
+        // Check "/exit" command
         if (!strcmp(buffer, leaveChatMsg))
         {
-            printf("User [%s] disconnected.\n", Data->nickname);
-            shutdown(Data->socket, SHUT_RDWR);
-            client_s[Data->id] = NULL;
-            delete Data;
+            char tempMsg[1024];
+            printf("User [%s] disconnected.\n", user->nickname);
+            sprintf(tempMsg, "SERVER NOTIFICATION: User [%s] disconnected.", user->nickname);
+            sendToAll(tempMsg);
+            shutdown(user->socket, SHUT_RDWR);
+            client_s[user->id] = NULL;
+            delete user;
             return NULL;
         }
-
-        printf("Received message from socket: [%s]: %s\n", Data->nickname, buffer);
-        bool setName = true;
-        size_t i = 0;
         
         // Change nickname
         for (i; i < strlen(changeNickname); ++i)
@@ -149,10 +196,23 @@ void* client_recv(void* data)
                 setName = false;
                 break;
             }
+            else if (buffer[5] != ' ')
+            {
+                setName = false;
+                break;
+            }
         }
         if (setName)
         {
-            changeUserNickname(Data, buffer + i + 1);
+            changeUserNickname(user, buffer + i + 1);
+        }
+
+        if (!strcmp(user->nickname, standardName))
+        {
+            char text[1024];
+            sprintf(text, "SERVER NOTIFICATION: You can not chatting. Change your nickname using the command /nick");
+            send(user->socket, text, strlen(text) + 1, 0);
+            continue;
         }
 
         // Online users
@@ -160,12 +220,12 @@ void* client_recv(void* data)
         {
             const char* text = "* Online users: *";
             sendToAll(text);
-            for (size_t j = 0; j < MAX_CLIENTS; ++j)
+            for (size_t i = 0; i < MAX_CLIENTS; ++i)
             {
-                if (client_s[j] != NULL)
+                if (client_s[i] != NULL)
                 {
                     char buffer3[128];
-                    sprintf(buffer3, "[ %s ]", client_s[j]->nickname);
+                    sprintf(buffer3, "[ %s ]", client_s[i]->nickname);
                     sendToAll(buffer3);
                 }
             }
@@ -175,21 +235,21 @@ void* client_recv(void* data)
         // Help message
         if (!strcmp(buffer, helpMsg))
         {
-            const char* text = "[/nick [nickname] - change your nickname.]\n[/online - check online users.]\n[/help - check all commands.]\n[/exit - leave chat.]";
-            sendToAll(text);
+            const char* text = "[ /nick [nickname] - change your nickname. ]\n[ /online - check online users. ]\n[ /help - check all commands. ]\n[ /exit - leave chat. ]";
+            send(user->socket, text, strlen(text) + 1, 0);
         }
 
         if(buffer[0] == '@')
         {
-            sprintf(buffer2, "%s: %s", Data->nickname, buffer);
+            sprintf(buffer2, "%s: %s", user->nickname, buffer);
             Log = fopen("messages.log", "a");
             fprintf(Log, "%s\n", buffer2);
             fclose(Log);
-            sendToUserByName(Data, buffer);
+            sendToUserByName(user, buffer);
         }
         else
         {
-            sprintf(buffer2, "%s: %s", Data->nickname, buffer);
+            sprintf(buffer2, "%s: %s", user->nickname, buffer);
             Log = fopen("messages.log", "a");
             fprintf(Log, "%s\n", buffer2);
             fclose(Log);
@@ -283,7 +343,7 @@ void client()
         fclose(Log);
 
         pthread_t thread;
-        pthread_create(&thread, NULL, recv_data, NULL);
+        pthread_create(&thread, NULL, recv_msg, NULL);
         while(true)
         {
             std::string buffer;
