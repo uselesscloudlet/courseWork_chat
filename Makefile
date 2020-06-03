@@ -1,2 +1,2 @@
 all:
-	g++ cw_chat.cpp -lpthread -o cw_chat
+	g++ main.cpp ./server/server.cpp ./client/client.cpp -lpthread -o main
