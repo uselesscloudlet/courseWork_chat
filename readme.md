@@ -1,5 +1,7 @@
 # Usage:
 
-Start the server: ./cw_chat -s
+1. make 
 
-Start the client: ./cw_chat -c
+2. Start the server: ./main -s
+
+3. Start the client: ./main -c
