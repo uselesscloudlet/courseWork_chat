@@ -44,6 +44,12 @@ void client()
         {
             std::string buffer;
             getline(std::cin, buffer);
+            if(buffer.length() > 1023)
+            {
+                printf("CLIENT NOTIFICATION: You can not send a message with more than 1024 characters\n");
+                printf("CLIENT NOTIFICATION: Message not sent\n");
+                continue;
+            }
             send(sock, buffer.c_str(), buffer.length(), 0);
             if (!strcmp(buffer.c_str(), leaveChatMsg))
             {
