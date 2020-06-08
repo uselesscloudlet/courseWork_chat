@@ -1,7 +1,11 @@
 #include "client.h"
 
-void client()
+void client(char* args)
 {
+    char* port = strchr(args, ':');
+    size_t pointer = port - args;
+    char ip[pointer + 1];
+    take_ip(args, ip, pointer);
     struct sockaddr_in addr;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
@@ -10,8 +14,8 @@ void client()
         return;
     }
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(27075);
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = htons(atoi(port + 1));
+    addr.sin_addr.s_addr = inet_addr(ip);
     if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
         perror("Connect error");
@@ -82,5 +86,14 @@ void* server_recv(void* data)
                 printf("%c", buffer[i]);
             }
         }
+    }
+}
+
+void take_ip(char* args, char* ip, size_t pointer)
+{
+    memset(ip, 0, pointer + 1);
+    for (size_t i = 0; i < pointer; ++i)
+    {
+        ip[i] = args[i];
     }
 }

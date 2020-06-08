@@ -1,6 +1,5 @@
 #include "server.h"
 
-int sock;
 Client* client_s[MAX_CLIENTS] = { NULL };
 
 struct Client
@@ -11,8 +10,9 @@ struct Client
     pthread_t thread;
 };
 
-void server()
+void server(char* args)
 {
+    int port = atoi(args);
     for (size_t i = 0; i < MAX_CLIENTS; ++i)
     {
         client_s[i] = NULL;
@@ -26,8 +26,9 @@ void server()
     }
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(27075);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
     if (bind(listener, (struct sockaddr*)&addr, sizeof(addr)) < 0)
     {
         perror("Bind error");
@@ -37,7 +38,7 @@ void server()
 
     while(true)
     {
-        sock = accept(listener, NULL, NULL);
+        int sock = accept(listener, NULL, NULL);
         if(sock < 0)
         {
             perror("Accept error");

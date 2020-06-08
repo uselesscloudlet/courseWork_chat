@@ -12,13 +12,15 @@ int main(int argc, char* argv[])
     {
         printf("Online chat.\n");
         printf("Server.\n");
-        server();
+        char* arg = argv[2];
+        server(arg);
     }
     else if (!strcmp(argv[1], "-c"))
     {
         printf("Online chat.\n");
         printf("Client.\n");
-        client();
+        char* arg = argv[2];
+        client(arg);
     }
     else
     {

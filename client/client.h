@@ -5,7 +5,8 @@
 
 #include "../global_def.h"
 
-void client(); // обработка клиента
+void client(char* args); // обработка клиента
 void* server_recv(void* data); // получение данных клиентом от сервера
+void take_ip(char* args, char* ip, size_t pointer);
 
 #endif

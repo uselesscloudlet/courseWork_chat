@@ -5,7 +5,7 @@
 
 #include "../global_def.h"
 
-void server(); // обработка сервера
+void server(char* args); // обработка сервера
 int freeSocket(); // функция, ищущая первый свободный сокет
 void* client_recv(void* data); // получение данных сервером от клиента
 void sendToAll(const char* message); // функция отправки сообщения всем пользователям.
